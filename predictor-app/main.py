@@ -1,11 +1,20 @@
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi import FastAPI, HTTPException
-import yfinance as yf
 from news import get_company_news
+from db import SessionLocal
+from models import stock, news
+from upload import router as upload_router
+from history import router as history_router
+from typing import List
+from fastapi import Query
+
+import yfinance as yf
+import os
 
 
 app = FastAPI()
 
+#CORS Setup
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["http://localhost:5173"],
@@ -14,9 +23,11 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-
-from typing import List
-from fastapi import Query
+#Register Routes
+app.include_router(history_router)
+# Only include if UPLOAD_ENABLED is set
+if os.getenv("UPLOAD_ENABLED") == "true":
+    app.include_router(upload_router)
 
 @app.get("/stock/{symbol}")
 def get_stock_price(

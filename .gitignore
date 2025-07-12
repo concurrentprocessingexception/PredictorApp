@@ -6,10 +6,10 @@
 
 # --- BACKEND: predictor-app ---
 /predictor-app/venv/
-/predictor-app/__pycache__/
+/predictor-app/**/*.pyc
+/predictor-app/**/__pycache__/
 /predictor-app/*.log
 /predictor-app/.env
-/predictor-app/*.pyc
 /predictor-app/*.egg-info/
 /predictor-app/build/
 /predictor-app/dist/
