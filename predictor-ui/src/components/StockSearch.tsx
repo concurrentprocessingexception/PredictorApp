@@ -1,3 +1,5 @@
+// StockSearch.tsx
+
 import React, { useState, useEffect } from 'react';
 import { Line } from 'react-chartjs-2';
 import {
@@ -12,6 +14,7 @@ import {
 } from 'chart.js';
 import { fetchStockHistory } from '../services/stockService';
 import NewsPanel from './NewsPanel';
+import dayjs from 'dayjs';
 
 ChartJS.register(
   LineElement,
@@ -24,11 +27,11 @@ ChartJS.register(
 );
 
 const ranges = [
-  { label: '1D', value: '1d' },
-  { label: '1W', value: '1w' },
-  { label: '1M', value: '1m' },
-  { label: '6M', value: '6m' },
-  { label: '1Y', value: '1y' },
+  { label: '1D', value: '1d', days: 1 },
+  { label: '1W', value: '1w', days: 7 },
+  { label: '1M', value: '1m', days: 30 },
+  { label: '6M', value: '6m', days: 180 },
+  { label: '1Y', value: '1y', days: 365 },
 ];
 
 const StockSearch: React.FC = () => {
@@ -42,8 +45,13 @@ const StockSearch: React.FC = () => {
     setLoading(true);
     setError('');
     try {
-      const result = await fetchStockHistory(symbol, range);
-      setPriceData(result.data);
+      const selectedRange = ranges.find(r => r.value === range);
+      const days = selectedRange?.days || 30;
+      const endDate = dayjs().format('YYYY-MM-DD');
+      const startDate = dayjs().subtract(days, 'day').format('YYYY-MM-DD');
+
+      const result = await fetchStockHistory(symbol, startDate, endDate);
+      setPriceData(result);
     } catch (e: any) {
       setError(e?.response?.data?.detail || 'Failed to fetch data');
       setPriceData([]);
@@ -52,9 +60,9 @@ const StockSearch: React.FC = () => {
     }
   };
 
-  // Auto-fetch on load
   useEffect(() => {
     handleSearch();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [range]);
 
   const chartData = {
