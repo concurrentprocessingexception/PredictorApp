@@ -1,0 +1,21 @@
+# --- FRONTEND: predictor-ui ---
+/predictor-ui/node_modules/
+/predictor-ui/dist/
+/predictor-ui/.env
+/predictor-ui/.vite/
+
+# --- BACKEND: predictor-app ---
+/predictor-app/venv/
+/predictor-app/__pycache__/
+/predictor-app/*.log
+/predictor-app/.env
+/predictor-app/*.pyc
+/predictor-app/*.egg-info/
+/predictor-app/build/
+/predictor-app/dist/
+
+# --- COMMON ---
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
