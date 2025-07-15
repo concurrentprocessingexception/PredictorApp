@@ -2,7 +2,7 @@
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
-from typing import Literal
+from typing import Literal, Optional
 from sqlalchemy.orm import Session
 from db import SessionLocal
 from models.stock import StockPrice
@@ -10,8 +10,8 @@ from datetime import datetime
 import yfinance as yf
 from fastapi import Query
 from sqlalchemy import and_
-from typing import Optional
-from datetime import datetime
+import pandas as pd
+import logging
 
 router = APIRouter()
 
@@ -21,6 +21,13 @@ def get_db():
         yield db
     finally:
         db.close()
+
+
+# Configure logging: set level and format
+logging.basicConfig(
+    level=logging.INFO,  # Set the minimum log level to DEBUG
+    format='%(asctime)s - %(levelname)s - %(message)s'
+)
 
 class FetchHistoricalRequest(BaseModel):
     symbol: str
@@ -34,7 +41,14 @@ def fetch_historical(data: FetchHistoricalRequest, db: Session = Depends(get_db)
     symbol = data.symbol.upper()
 
     try:
-        hist = yf.download(symbol, start=data.start_date, end=data.end_date, interval=data.interval)
+        hist = yf.download(
+            symbol,
+            start=data.start_date,
+            end=data.end_date,
+            interval=data.interval,
+            auto_adjust=False  # so Adj Close stays separate
+        )
+        logging.info(f"yfinance returned {hist.shape[0]} rows for {symbol}")
     except Exception as e:
         raise HTTPException(status_code=400, detail=f"Failed to fetch data: {e}")
 
@@ -46,18 +60,32 @@ def fetch_historical(data: FetchHistoricalRequest, db: Session = Depends(get_db)
 
     for timestamp, row in hist.iterrows():
         timestamp = timestamp.to_pydatetime()
-        close = float(row["Close"])
+        
+        exists = db.query(StockPrice).filter_by(
+            symbol=symbol, 
+            timestamp=timestamp,
+            interval=data.interval
+        ).first()
 
-        exists = db.query(StockPrice).filter_by(symbol=symbol, timestamp=timestamp).first()
         if exists:
             skipped += 1
             continue
 
+        def safe_float(val):
+            return float(val) if val is not None and not pd.isna(val) else None
+        
         stock_entry = StockPrice(
             symbol=symbol,
             timestamp=timestamp,
-            close=close
+            open=safe_float(row.get(("Open", symbol))),
+            high=safe_float(row.get(("High", symbol))),
+            low=safe_float(row.get(("Low", symbol))),
+            close=safe_float(row.get(("Close", symbol))),
+            adj_close=safe_float(row.get(("Adj Close", symbol))),
+            volume=int(row.get(("Volume", symbol))) if row.get(("Volume", symbol)) and not pd.isna(row.get(("Volume", symbol))) else None,
+            interval=data.interval
         )
+
         db.add(stock_entry)
         inserted += 1
 
@@ -67,7 +95,7 @@ def fetch_historical(data: FetchHistoricalRequest, db: Session = Depends(get_db)
         "symbol": symbol,
         "inserted": inserted,
         "skipped": skipped,
-        "message": "Historical data saved to DB"
+        "message": "Historical OHLCV data saved."
     }
 
 
@@ -81,7 +109,10 @@ def get_stock_history(
 ):
     symbol = symbol.upper()
 
-    query = db.query(StockPrice).filter(StockPrice.symbol == symbol)
+    query = db.query(StockPrice).filter(
+        StockPrice.symbol == symbol,
+        StockPrice.interval == interval
+    )
 
     # Optional date filtering
     if start_date:
@@ -106,7 +137,12 @@ def get_stock_history(
     return [
         {
             "date": record.timestamp.strftime("%Y-%m-%d %H:%M:%S"),
-            "close": record.close
+            "open": record.open,
+            "high": record.high,
+            "low": record.low,
+            "close": record.close,
+            "adj_close": record.adj_close,
+            "volume": record.volume,
         }
         for record in records
     ]

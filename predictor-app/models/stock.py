@@ -7,4 +7,12 @@ class StockPrice(Base):
     id = Column(Integer, primary_key=True, index=True)
     symbol = Column(String, index=True)
     timestamp = Column(DateTime, index=True)
-    close = Column(Float)
+
+    open = Column(Float, nullable=True)
+    high = Column(Float, nullable=True)
+    low = Column(Float, nullable=True)
+    close = Column(Float, nullable=True)
+    adj_close = Column(Float, nullable=True)
+    volume = Column(Integer, nullable=True)
+
+    interval = Column(String, nullable=True)

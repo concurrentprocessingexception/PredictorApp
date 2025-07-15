@@ -37,9 +37,20 @@ const ranges = [
 const StockSearch: React.FC = () => {
   const [symbol, setSymbol] = useState('AAPL');
   const [range, setRange] = useState('1d');
-  const [priceData, setPriceData] = useState<{ date: string; close: number }[]>([]);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+
+  // const [priceData, setPriceData] = useState<{ date: string; close: number }[]>([]);
+  const [priceData, setPriceData] = useState<{
+    date: string;
+    open: number;
+    high: number;
+    low: number;
+    close: number;
+    adj_close: number;
+    volume: number;
+  }[]>([]);
+
 
   const handleSearch = async () => {
     setLoading(true);
@@ -65,6 +76,7 @@ const StockSearch: React.FC = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [range]);
 
+  /* 
   const chartData = {
     labels: priceData.map(p => p.date),
     datasets: [
@@ -77,6 +89,36 @@ const StockSearch: React.FC = () => {
       }
     ]
   };
+  */
+  const chartData = {
+    labels: priceData.map(p => p.date),
+    datasets: [
+      {
+        label: 'Close',
+        data: priceData.map(p => p.close),
+        borderColor: 'rgb(59, 130, 246)',
+        backgroundColor: 'rgba(59, 130, 246, 0.2)',
+        tension: 0.4
+      },
+      {
+        label: 'High',
+        data: priceData.map(p => p.high),
+        borderColor: 'rgb(34, 197, 94)',
+        borderDash: [5, 5],
+        fill: false,
+        tension: 0.4
+      },
+      {
+        label: 'Low',
+        data: priceData.map(p => p.low),
+        borderColor: 'rgb(239, 68, 68)',
+        borderDash: [5, 5],
+        fill: false,
+        tension: 0.4
+      },
+    ]
+  };
+
 
   const chartOptions = {
     responsive: true,
