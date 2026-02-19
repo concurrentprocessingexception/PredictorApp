@@ -5,7 +5,7 @@ import requests
 from fastapi import HTTPException
 from datetime import date, timedelta
 
-FINNHUB_API_KEY = os.getenv("FINNHUB_API_KEY", "d1of3q1r01qjadrjo56gd1of3q1r01qjadrjo570")  # Replace for now
+FINNHUB_API_KEY = os.getenv("FINNHUB_API_KEY")
 
 BASE_URL = "https://finnhub.io/api/v1/company-news"
 

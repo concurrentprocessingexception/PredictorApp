@@ -35,8 +35,8 @@ const ranges = [
 ];
 
 const StockSearch: React.FC = () => {
-  const [symbol, setSymbol] = useState('AAPL');
-  const [range, setRange] = useState('1d');
+  const [symbol, setSymbol] = useState('TSLA');
+  const [range, setRange] = useState('1m');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
@@ -90,8 +90,19 @@ const StockSearch: React.FC = () => {
     ]
   };
   */
+  const formatDateLabel = (dateStr: string) => {
+    const d = new Date(dateStr);
+    const day = String(d.getDate()).padStart(2, "0");
+    const month = String(d.getMonth() + 1).padStart(2, "0");
+    const year = d.getFullYear();
+    return `${day}-${month}-${year}`;
+  };
+
+
+  const labels = priceData.map((item: any) => formatDateLabel(item.date));
+
   const chartData = {
-    labels: priceData.map(p => p.date),
+    labels,
     datasets: [
       {
         label: 'Close',
@@ -123,7 +134,7 @@ const StockSearch: React.FC = () => {
   const chartOptions = {
     responsive: true,
     plugins: {
-      legend: { position: 'top' as const },
+      legend: { position: 'top' },
       title: {
         display: true,
         text: `Price Trend for ${symbol.toUpperCase()}`
@@ -132,7 +143,6 @@ const StockSearch: React.FC = () => {
     scales: {
       x: {
         ticks: {
-          maxTicksLimit: 10,
           autoSkip: true,
         }
       }

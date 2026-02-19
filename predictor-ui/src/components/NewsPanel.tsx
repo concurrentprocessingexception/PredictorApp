@@ -5,6 +5,12 @@ type Props = {
   searchSymbol: string;
 };
 
+const sentimentColorMap: Record<string, string> = {
+  Positive: 'text-green-600',
+  Negative: 'text-red-600',
+  Neutral: 'text-yellow-600',
+};
+
 const NewsPanel: React.FC<Props> = ({ searchSymbol }) => {
   const [articles, setArticles] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
@@ -45,7 +51,14 @@ const NewsPanel: React.FC<Props> = ({ searchSymbol }) => {
                   new Date(article.datetime * 1000).toLocaleString()}
               </div>
               <div className="text-sm italic mt-1">
-                Sentiment: {article.sentiment}
+                Sentiment:{' '}
+                <span
+                  className={`font-bold ${
+                    sentimentColorMap[article.sentiment] ?? 'text-gray-500'
+                  }`}
+                >
+                  {article.sentiment}
+                </span>
               </div>
             </li>
           ))}

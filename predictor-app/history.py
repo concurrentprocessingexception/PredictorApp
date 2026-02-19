@@ -136,7 +136,7 @@ def get_stock_history(
 
     return [
         {
-            "date": record.timestamp.strftime("%Y-%m-%d %H:%M:%S"),
+            "date": record.timestamp.isoformat(),
             "open": record.open,
             "high": record.high,
             "low": record.low,
