@@ -1,11 +1,9 @@
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi import FastAPI, HTTPException
 from news import get_company_news
-from db import SessionLocal
-from models import stock, news
 from upload import router as upload_router
 from history import router as history_router
-from typing import List
+from forecast import router as forecast_router
 from fastapi import Query
 
 import yfinance as yf
@@ -25,6 +23,8 @@ app.add_middleware(
 
 #Register Routes
 app.include_router(history_router)
+app.include_router(forecast_router)
+
 # Only include if UPLOAD_ENABLED is set
 if os.getenv("UPLOAD_ENABLED") == "true":
     app.include_router(upload_router)

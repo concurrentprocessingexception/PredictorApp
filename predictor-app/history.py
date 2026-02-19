@@ -4,7 +4,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from typing import Literal, Optional
 from sqlalchemy.orm import Session
-from db import SessionLocal
+from database import SessionLocal
 from models.stock import StockPrice
 from datetime import datetime
 import yfinance as yf

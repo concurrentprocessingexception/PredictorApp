@@ -7,7 +7,7 @@ from alembic import context
 
 from models.stock import StockPrice
 from models.news import NewsArticle
-from db import Base
+from database import Base
 
 
 # this is the Alembic Config object, which provides
