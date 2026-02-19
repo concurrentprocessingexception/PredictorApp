@@ -1,14 +1,18 @@
---------------
--predictor-ui-
---------------
+# Project : Predictor App
+This projects contains 2 modules.
 
-cd D:\work\StocksProject\predictor-ui
-npm run dev
+- predictor-ui
+- predictor-app
 
----------------
--predictor-app-
----------------
+## predictor-ui
+To run, go to project root and run the following command
 
-cd D:\work\StocksProject\predictor-app
-venv\Scripts\activate
-uvicorn main:app --reload
+> npm run dev
+
+## predictor-app
+
+To run, go to project root and run the following command
+
+> venv\Scripts\activate
+
+> uvicorn main:app --reload
