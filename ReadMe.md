@@ -16,3 +16,8 @@ To run, go to project root and run the following command
 > venv\Scripts\activate
 
 > uvicorn main:app --reload
+
+For this project you need to provide 2 environment variables
+
+- DATABASE_URL : for accessing the databse
+- FINNHUB_API_KEY : to fetch news
