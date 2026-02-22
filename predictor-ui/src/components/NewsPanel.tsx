@@ -5,10 +5,12 @@ type Props = {
   searchSymbol: string;
 };
 
-const sentimentColorMap: Record<string, string> = {
+type Sentiment = 'Positive' | 'Neutral' | 'Negative';
+
+const sentimentColorMap: Record<Sentiment, string> = {
   Positive: 'text-green-600',
-  Negative: 'text-red-600',
   Neutral: 'text-yellow-600',
+  Negative: 'text-red-600',
 };
 
 const NewsPanel: React.FC<Props> = ({ searchSymbol }) => {
@@ -28,45 +30,87 @@ const NewsPanel: React.FC<Props> = ({ searchSymbol }) => {
     }
   }, [searchSymbol]);
 
+  const groupedNews: Record<Sentiment, any[]> = {
+    Positive: articles.filter(a => a.sentiment === 'Positive'),
+    Neutral: articles.filter(a => a.sentiment === 'Neutral'),
+    Negative: articles.filter(a => a.sentiment === 'Negative'),
+  };
+
   return (
-    <div className="p-4 border rounded shadow h-full">
-      <h2 className="text-lg font-semibold mb-2">📰 News & Sentiment</h2>
+    <div className="p-4 border rounded shadow">
+      <h2 className="text-lg font-semibold mb-4">
+        📰 News & Sentiment
+      </h2>
 
-      {loading && <p className="text-sm text-gray-500">Loading news...</p>}
-
-      {!loading && articles.length > 0 && (
-        <ul className="space-y-2">
-          {articles.slice(0, 10).map((article, idx) => (
-            <li key={idx} className="border p-2 rounded">
-              <a
-                href={article.url}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="font-semibold text-blue-700 hover:underline"
-              >
-                {article.headline}
-              </a>
-              <div className="text-sm text-gray-600">
-                {article.datetime &&
-                  new Date(article.datetime * 1000).toLocaleString()}
-              </div>
-              <div className="text-sm italic mt-1">
-                Sentiment:{' '}
-                <span
-                  className={`font-bold ${
-                    sentimentColorMap[article.sentiment] ?? 'text-gray-500'
-                  }`}
-                >
-                  {article.sentiment}
-                </span>
-              </div>
-            </li>
-          ))}
-        </ul>
+      {loading && (
+        <p className="text-sm text-gray-500">Loading news...</p>
       )}
 
       {!loading && articles.length === 0 && (
         <p className="text-sm text-gray-500">No news found.</p>
+      )}
+
+      {!loading && articles.length > 0 && (
+        <div className="overflow-x-auto">
+          <table className="w-full border-collapse">
+            <thead>
+              <tr className="bg-gray-100">
+                {(['Positive', 'Neutral', 'Negative'] as Sentiment[]).map(
+                  sentiment => (
+                    <th
+                      key={sentiment}
+                      className={`border p-2 text-center font-semibold ${sentimentColorMap[sentiment]}`}
+                    >
+                      {sentiment}
+                    </th>
+                  )
+                )}
+              </tr>
+            </thead>
+
+            <tbody>
+              <tr>
+                {(['Positive', 'Neutral', 'Negative'] as Sentiment[]).map(
+                  sentiment => (
+                    <td
+                      key={sentiment}
+                      className="border p-2 align-top w-1/3"
+                    >
+                      <ul className="space-y-2">
+                        {groupedNews[sentiment]
+                          .slice(0, 10)
+                          .map((article, idx) => (
+                            <li key={idx} className="text-sm">
+                              <a
+                                href={article.url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-blue-700 hover:underline font-medium"
+                              >
+                                {article.headline}
+                              </a>
+                              <div className="text-xs text-gray-500">
+                                {article.datetime &&
+                                  new Date(
+                                    article.datetime * 1000
+                                  ).toLocaleString()}
+                              </div>
+                            </li>
+                          ))}
+
+                        {groupedNews[sentiment].length === 0 && (
+                          <li className="text-xs text-gray-400 italic">
+                            No articles
+                          </li>
+                        )}
+                      </ul>
+                    </td>
+                  )
+                )}
+              </tr>
+            </tbody>
+          </table>
+        </div>
       )}
     </div>
   );

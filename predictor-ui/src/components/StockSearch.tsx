@@ -1,6 +1,6 @@
 // StockSearch.tsx
 
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Line } from 'react-chartjs-2';
 import {
   Chart as ChartJS,
@@ -10,12 +10,13 @@ import {
   LinearScale,
   Title,
   Tooltip,
-  Legend
+  Legend,
 } from 'chart.js';
+import dayjs from 'dayjs';
+
 import { fetchStockHistory } from '../services/stockService';
 import { fetchStockForecast } from '../services/forecastService';
 import NewsPanel from './NewsPanel';
-import dayjs from 'dayjs';
 
 ChartJS.register(
   LineElement,
@@ -44,33 +45,8 @@ const StockSearch: React.FC = () => {
 
   const [priceData, setPriceData] = useState<{
     date: string;
-    open: number;
-    high: number;
-    low: number;
     close: number;
-    adj_close: number;
-    volume: number;
   }[]>([]);
-
-
-  const handleSearch = async () => {
-    setLoading(true);
-    setError('');
-    try {
-      const selectedRange = ranges.find(r => r.value === range);
-      const days = selectedRange?.days || 30;
-      const endDate = dayjs().format('YYYY-MM-DD');
-      const startDate = dayjs().subtract(days, 'day').format('YYYY-MM-DD');
-
-      const result = await fetchStockHistory(symbol, startDate, endDate);
-      setPriceData(result);
-    } catch (e: any) {
-      setError(e?.response?.data?.detail || 'Failed to fetch data');
-      setPriceData([]);
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const [forecastData, setForecastData] = useState<{
     date: string;
@@ -79,13 +55,42 @@ const StockSearch: React.FC = () => {
     upper: number;
   }[]>([]);
 
+  const formatDateLabel = (dateStr: string) => {
+    const d = new Date(dateStr);
+    return `${String(d.getDate()).padStart(2, '0')}-${String(
+      d.getMonth() + 1
+    ).padStart(2, '0')}-${d.getFullYear()}`;
+  };
+
+  const handleSearch = async () => {
+    setLoading(true);
+    setError('');
+
+    try {
+      const selectedRange = ranges.find(r => r.value === range);
+      const days = selectedRange?.days ?? 30;
+
+      const endDate = dayjs().format('YYYY-MM-DD');
+      const startDate = dayjs().subtract(days, 'day').format('YYYY-MM-DD');
+
+      const result = await fetchStockHistory(symbol, startDate, endDate);
+      setPriceData(result);
+      setForecastData([]); // reset forecast on new search
+    } catch (e: any) {
+      setError(e?.response?.data?.detail || 'Failed to fetch data');
+      setPriceData([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const forecastStockPrice = async () => {
     setForecasting(true);
     setError('');
+
     try {
-      // Call forecast API here and update state with forecast data
-      const forecastResult = await fetchStockForecast(symbol, 7, '1d');
-      setForecastData(forecastResult);
+      const result = await fetchStockForecast(symbol, 7, '1d');
+      setForecastData(result);
     } catch (e: any) {
       setError(e?.response?.data?.detail || 'Failed to fetch forecast');
       setForecastData([]);
@@ -99,163 +104,134 @@ const StockSearch: React.FC = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [range]);
 
-  const formatDateLabel = (dateStr: string) => {
-    const d = new Date(dateStr);
-    const day = String(d.getDate()).padStart(2, "0");
-    const month = String(d.getMonth() + 1).padStart(2, "0");
-    const year = d.getFullYear();
-    return `${day}-${month}-${year}`;
-  };
+  /* =======================
+     Combined Chart Logic
+     ======================= */
 
+  const historicalLabels = priceData.map(p =>
+    formatDateLabel(p.date)
+  );
+  const forecastLabels = forecastData.map(p =>
+    formatDateLabel(p.date)
+  );
 
-  const labels = priceData.map((item: any) => formatDateLabel(item.date));
+  const combinedLabels = [...historicalLabels, ...forecastLabels];
 
-  const chartData = {
-    labels,
+  const combinedChartData = {
+    labels: combinedLabels,
     datasets: [
       {
-        label: 'Close',
-        data: priceData.map(p => p.close),
+        label: 'Historical Close',
+        data: [
+          ...priceData.map(p => p.close),
+          ...Array(forecastData.length).fill(null),
+        ],
         borderColor: 'rgb(59, 130, 246)',
-        backgroundColor: 'rgba(59, 130, 246, 0.2)',
-        tension: 0.4
+        backgroundColor: 'rgba(59, 130, 246, 0.15)',
+        tension: 0.4,
       },
       {
-        label: 'High',
-        data: priceData.map(p => p.high),
-        borderColor: 'rgb(34, 197, 94)',
-        borderDash: [5, 5],
-        fill: false,
-        tension: 0.4
-      },
-      {
-        label: 'Low',
-        data: priceData.map(p => p.low),
-        borderColor: 'rgb(239, 68, 68)',
-        borderDash: [5, 5],
-        fill: false,
-        tension: 0.4
-      },
-    ]
-  };
-
-
-  const chartOptions = {
-    responsive: true,
-    plugins: {
-      legend: { position: 'top' },
-      title: {
-        display: true,
-        text: `Price Trend for ${symbol.toUpperCase()}`
-      },
-    },
-    scales: {
-      x: {
-        ticks: {
-          autoSkip: true,
-        }
-      }
-    }
-  };
-
-  const forecastLabels = forecastData.map((item) => formatDateLabel(item.date));
-
-  const forecastChartData = {
-    labels: forecastLabels,
-    datasets: [
-      {
-        label: 'Prediction',
-        data: forecastData.map(p => p.prediction),
+        label: 'Forecast',
+        data: [
+          ...Array(priceData.length).fill(null),
+          ...forecastData.map(p => p.prediction),
+        ],
         borderColor: 'rgb(168, 85, 247)',
-        backgroundColor: 'rgba(168, 85, 247, 0.2)',
-        tension: 0.4
+        borderDash: [2, 4],
+        tension: 0.4,
       },
       {
         label: 'Lower Bound',
-        data: forecastData.map(p => p.lower),
+        data: [
+          ...Array(priceData.length).fill(null),
+          ...forecastData.map(p => p.lower),
+        ],
         borderColor: 'rgb(239, 68, 68)',
-        borderDash: [5, 5],
-        fill: false,
-        tension: 0.4
+        borderDash: [4, 4],
+        tension: 0.4,
       },
       {
         label: 'Upper Bound',
-        data: forecastData.map(p => p.upper),
+        data: [
+          ...Array(priceData.length).fill(null),
+          ...forecastData.map(p => p.upper),
+        ],
         borderColor: 'rgb(34, 197, 94)',
-        borderDash: [5, 5],
-        fill: false,
-        tension: 0.4
-      }
-    ]
+        borderDash: [4, 4],
+        tension: 0.4,
+      },
+    ],
   };
 
-  const forecastChartOptions = {
+  const combinedChartOptions = {
     responsive: true,
     plugins: {
-      legend: { position: 'top' },
+      legend: { position: 'top' as const },
       title: {
         display: true,
-        text: `Forecast for ${symbol.toUpperCase()}`
+        text: `Price History & Forecast for ${symbol.toUpperCase()}`,
       },
     },
     scales: {
       x: {
-        ticks: {
-          autoSkip: true,
-        }
-      }
-    }
+        ticks: { autoSkip: true },
+      },
+    },
   };
 
   return (
-    <div>
-      {/* 🔍 Search + Range */}
-      <div className="mb-6 flex flex-col sm:flex-row gap-4">
+    <div className="space-y-6">
+      {/* 🔍 Search */}
+      <div className="flex flex-col sm:flex-row gap-4">
         <input
           type="text"
           className="border p-2 w-full sm:w-72"
           placeholder="Enter Symbol (e.g., TSLA)"
           value={symbol}
-          onChange={(e) => setSymbol(e.target.value.toUpperCase())}
+          onChange={e => setSymbol(e.target.value.toUpperCase())}
         />
+
         <select
           className="border p-2 w-full sm:w-40"
           value={range}
-          onChange={(e) => setRange(e.target.value)}
+          onChange={e => setRange(e.target.value)}
         >
-          {ranges.map((r) => (
-            <option key={r.value} value={r.value}>{r.label}</option>
+          {ranges.map(r => (
+            <option key={r.value} value={r.value}>
+              {r.label}
+            </option>
           ))}
         </select>
+
         <button
-          className="bg-blue-600 text-white px-4 py-2 rounded w-full sm:w-auto"
+          className="bg-blue-600 text-white px-4 py-2 rounded"
           onClick={handleSearch}
         >
           {loading ? 'Loading...' : 'Search'}
         </button>
       </div>
 
-      {error && <p className="text-red-600 text-sm mb-4">{error}</p>}
+      {error && <p className="text-red-600 text-sm">{error}</p>}
 
-      {/* 📊 Chart + 📰 News Panel */}
-      <div className="flex flex-col lg:flex-row items-stretch gap-6">
-        {/* Chart */}
-        <div className="w-full lg:w-2/3 border rounded p-4 shadow h-full">
-          {priceData.length > 0 && <Line data={chartData} options={chartOptions} />}
+      {/* 📊 Combined Chart */}
+      <div className="border rounded p-4 shadow">
+        {priceData.length > 0 && (
+          <Line
+            data={combinedChartData}
+            options={combinedChartOptions}
+          />
+        )}
 
-          <button
-            className="bg-blue-600 text-white px-4 py-2 rounded w-full sm:w-auto"
-            onClick={forecastStockPrice} >
-            {forecasting ? 'Forecasting...' : 'Forecast'}
-          </button>
-          {forecastData.length > 0 && <Line data={forecastChartData} options={forecastChartOptions} />}
-        </div>
-
-        {/* News */}
-        <div className="w-full lg:w-1/3 h-full">
-          <NewsPanel searchSymbol={symbol} />
-        </div>
+        <button
+          className="mt-4 bg-blue-600 text-white px-4 py-2 rounded"
+          onClick={forecastStockPrice}
+        >
+          {forecasting ? 'Forecasting...' : 'Forecast'}
+        </button>
       </div>
+
+      {/* 📰 News */}
+      <NewsPanel searchSymbol={symbol} />
     </div>
   );
 };
