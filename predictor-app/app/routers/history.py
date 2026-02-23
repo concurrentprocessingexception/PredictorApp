@@ -1,11 +1,9 @@
-# predictor-app/history.py
-
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from typing import Literal, Optional
 from sqlalchemy.orm import Session
-from database import SessionLocal
-from models.stock import StockPrice
+from app.database import SessionLocal
+from app.models.stock import StockPrice
 from datetime import datetime
 import yfinance as yf
 from fastapi import Query

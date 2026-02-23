@@ -4,8 +4,8 @@
 from fastapi import UploadFile, File, APIRouter, Depends, HTTPException
 import pandas as pd
 from sqlalchemy.orm import Session
-from database import SessionLocal
-from models.stock import StockPrice
+from app.database import SessionLocal
+from app.models.stock import StockPrice
 from io import StringIO
 from datetime import datetime
 

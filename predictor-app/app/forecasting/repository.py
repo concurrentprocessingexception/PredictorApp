@@ -1,7 +1,7 @@
 # Fetch historical data from DB
 
 from sqlalchemy.orm import Session
-from models.stock import StockPrice
+from app.models.stock import StockPrice
 
 def get_historical_close_prices(
     db: Session,

@@ -1,5 +1,5 @@
 from prophet import Prophet
-from forecasting.base import BaseForecaster
+from .base import BaseForecaster
 import numpy as np
 
 class ProphetForecaster(BaseForecaster):

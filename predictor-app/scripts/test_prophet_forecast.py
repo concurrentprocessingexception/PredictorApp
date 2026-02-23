@@ -1,8 +1,8 @@
 from sqlalchemy.orm import Session
-from database import SessionLocal
-from forecasting.repository import get_historical_close_prices
-from forecasting.utils import to_prophet_dataframe
-from forecasting.prophet_model import ProphetForecaster
+from app.database import SessionLocal
+from app.forecasting.repository import get_historical_close_prices
+from app.forecasting.utils import to_prophet_dataframe
+from app.forecasting.prophet_model import ProphetForecaster
 
 
 def main():

@@ -1,16 +1,17 @@
-# predictor-app/news.py
-
 import os
 import requests
 from fastapi import HTTPException
 from datetime import date, timedelta
 
-FINNHUB_API_KEY = os.getenv("FINNHUB_API_KEY")
+# API key from configuration
+from app.settings import settings
+
+FINNHUB_API_KEY = settings.finnhub_api_key
 
 BASE_URL = "https://finnhub.io/api/v1/company-news"
 
-positive_keywords = ['gain', 'growth', 'up', 'profit', 'surge']
-negative_keywords = ['loss', 'down', 'drop', 'decline', 'risk']
+positive_keywords = ['gain', 'growth', 'up', 'profit', 'surge', 'winner']
+negative_keywords = ['loss', 'down', 'drop', 'decline', 'risk', 'disappointing']
 
 def analyze_sentiment(headline: str) -> str:
     lower = headline.lower()
@@ -35,7 +36,7 @@ def get_company_news(symbol: str):
     }
 
     try:
-        response = requests.get(BASE_URL, params=params)
+        response = requests.get(BASE_URL, params=params, timeout=10)
         response.raise_for_status()
         news_data = response.json()
 

@@ -5,9 +5,9 @@ from sqlalchemy import pool
 
 from alembic import context
 
-from models.stock import StockPrice
-from models.news import NewsArticle
-from database import Base
+from app.models.stock import StockPrice
+from app.models.news import NewsArticle
+from app.database import Base
 
 
 # this is the Alembic Config object, which provides
