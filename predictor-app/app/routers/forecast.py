@@ -1,71 +1,50 @@
-from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy.orm import Session
-from datetime import datetime
+# app/routers/forecast.py
 
-from app.database import SessionLocal
-from app.forecasting.repository import get_historical_close_prices
-from app.forecasting.utils import to_prophet_dataframe
-from app.forecasting.prophet_model import ProphetForecaster
+from fastapi import APIRouter, Depends
+from sqlalchemy.orm import Session
+import pandas as pd
+
+from app.database import get_db
+from app.models.stock_price import StockPrice
+from app.services.forecast_engine import run_forecast
 
 router = APIRouter(prefix="/forecast", tags=["Forecast"])
 
 
-def get_db():
-    db = SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
-
-
-@router.get("/{symbol}")
-def forecast_stock(
+@router.post("/run")
+def run_forecast_endpoint(
     symbol: str,
-    horizon: int = 30,
-    interval: str = "1d",
+    model_type: str = "baseline",
+    horizon_days: int = 5,
     db: Session = Depends(get_db),
 ):
-    symbol = symbol.upper()
-
-    rows = get_historical_close_prices(db, symbol, interval)
-
-    if len(rows) < 60:
-        raise HTTPException(
-            status_code=400,
-            detail=f"Not enough historical data to forecast {symbol}. "
-                   f"Need at least 60 data points."
+    prices = (
+        db.query(StockPrice)
+        .filter(
+            StockPrice.symbol == symbol,
+            StockPrice.interval == "1d",
         )
+        .order_by(StockPrice.timestamp)
+        .all()
+    )
 
-    df = to_prophet_dataframe(rows)
+    if not prices:
+        return {"error": "No historical prices found"}
 
-    try:
-        forecaster = ProphetForecaster()
-        forecaster.train(df)
-        forecast_rows = forecaster.forecast(horizon)
-    except Exception as e:
-        raise HTTPException(
-            status_code=500,
-            detail=f"Forecasting failed: {str(e)}"
-        )
-
-    response = {
-        "symbol": symbol,
-        "model": "prophet",
-        "interval": interval,
-        "horizon": horizon,
-        "generated_at": datetime.utcnow().isoformat(),
-        "forecast": [
+    df = pd.DataFrame(
+        [
             {
-                "date": row["ds"].date().isoformat(),
-                "prediction": round(row["yhat"], 2),
-                "lower": round(row["yhat_lower"], 2),
-                "upper": round(row["yhat_upper"], 2),
+                "trade_date": p.timestamp.date(),
+                "adj_close": p.adj_close,
             }
-            for row in forecast_rows
-        ],
-    }
+            for p in prices
+        ]
+    )
 
-    print(f"Generated forecast for {symbol} with {len(forecast_rows)} rows.")
-    print(f"Forecast response: {response}")
+    forecast_output = run_forecast(
+        historical_prices=df,
+        model_type=model_type,
+        horizon_days=horizon_days,
+    )
 
-    return response
+    return forecast_output

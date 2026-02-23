@@ -2,24 +2,18 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from typing import Literal, Optional
 from sqlalchemy.orm import Session
-from app.database import SessionLocal
-from app.models.stock import StockPrice
+from sqlalchemy import select
+from app.models.stock_price import StockPrice
 from datetime import datetime
 import yfinance as yf
 from fastapi import Query
 from sqlalchemy import and_
 import pandas as pd
 import logging
+from app.database import get_db
 
-router = APIRouter()
 
-def get_db():
-    db = SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
-
+router = APIRouter(prefix="/stocks", tags=["Stocks"])
 
 # Configure logging: set level and format
 logging.basicConfig(
@@ -31,7 +25,7 @@ class FetchHistoricalRequest(BaseModel):
     symbol: str
     start_date: str  # format: YYYY-MM-DD
     end_date: str    # format: YYYY-MM-DD
-    interval: Literal['1d', '1h', '1wk', '1m'] = '1d'
+    interval: Literal['1d'] = '1d'
 
 
 @router.post("/fetch-historical")
@@ -65,6 +59,10 @@ def fetch_historical(data: FetchHistoricalRequest, db: Session = Depends(get_db)
             interval=data.interval
         ).first()
 
+        if pd.isna(row.get(("Adj Close", symbol))):
+            skipped += 1
+            continue
+
         if exists:
             skipped += 1
             continue
@@ -89,6 +87,24 @@ def fetch_historical(data: FetchHistoricalRequest, db: Session = Depends(get_db)
 
     db.commit()
 
+    MAX_HISTORY_DAYS = 750
+
+    subquery = (
+        select(StockPrice.id)
+        .where(
+            StockPrice.symbol == symbol,
+            StockPrice.interval == "1d"
+        )
+        .order_by(StockPrice.timestamp.desc())
+        .offset(MAX_HISTORY_DAYS)
+    )
+
+    db.query(StockPrice).filter(
+        StockPrice.id.in_(subquery)
+    ).delete(synchronize_session=False)
+
+    db.commit()
+
     return {
         "symbol": symbol,
         "inserted": inserted,
@@ -102,7 +118,7 @@ def get_stock_history(
     symbol: str,
     start_date: Optional[str] = Query(None, description="Start date in YYYY-MM-DD"),
     end_date: Optional[str] = Query(None, description="End date in YYYY-MM-DD"),
-    interval: str = Query("1d", regex="^(1d|1h|1wk|1m)$"),
+    interval: Literal["1d"] = "1d",
     db: Session = Depends(get_db)
 ):
     symbol = symbol.upper()
