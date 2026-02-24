@@ -1,5 +1,3 @@
-// StockSearch.tsx
-
 import React, { useEffect, useState } from 'react';
 import { Line } from 'react-chartjs-2';
 import {
@@ -15,7 +13,7 @@ import {
 import dayjs from 'dayjs';
 
 import { fetchStockHistory } from '../services/stockService';
-import { fetchStockForecast } from '../services/forecastService';
+import { getForecastDashboard } from '../services/forecastService';
 import NewsPanel from './NewsPanel';
 
 ChartJS.register(
@@ -36,30 +34,42 @@ const ranges = [
   { label: '1Y', value: '1y', days: 365 },
 ];
 
+const HORIZON_COLORS: Record<number, string> = {
+  5: 'rgb(168, 85, 247)',   // purple
+  10: 'rgb(249, 115, 22)', // orange
+  20: 'rgb(34, 197, 94)',  // green
+};
+
 const StockSearch: React.FC = () => {
   const [symbol, setSymbol] = useState('TSLA');
   const [range, setRange] = useState('1m');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-  const [forecasting, setForecasting] = useState(false);
 
   const [priceData, setPriceData] = useState<{
     date: string;
     close: number;
   }[]>([]);
 
-  const [forecastData, setForecastData] = useState<{
-    date: string;
-    prediction: number;
-    lower: number;
-    upper: number;
-  }[]>([]);
+  const [forecastData, setForecastData] = useState<any | null>(null);
+  const [trust, setTrust] = useState<any | null>(null);
 
   const formatDateLabel = (dateStr: string) => {
     const d = new Date(dateStr);
     return `${String(d.getDate()).padStart(2, '0')}-${String(
       d.getMonth() + 1
     ).padStart(2, '0')}-${d.getFullYear()}`;
+  };
+
+  const loadForecastDashboard = async (sym: string) => {
+    try {
+      const data = await getForecastDashboard(sym);
+      setForecastData(data.forecasts);
+      setTrust(data.trust);
+    } catch {
+      setForecastData(null);
+      setTrust(null);
+    }
   };
 
   const handleSearch = async () => {
@@ -75,27 +85,15 @@ const StockSearch: React.FC = () => {
 
       const result = await fetchStockHistory(symbol, startDate, endDate);
       setPriceData(result);
-      setForecastData([]); // reset forecast on new search
+
+      await loadForecastDashboard(symbol);
     } catch (e: any) {
       setError(e?.response?.data?.detail || 'Failed to fetch data');
       setPriceData([]);
+      setForecastData(null);
+      setTrust(null);
     } finally {
       setLoading(false);
-    }
-  };
-
-  const forecastStockPrice = async () => {
-    setForecasting(true);
-    setError('');
-
-    try {
-      const result = await fetchStockForecast(symbol, 7, '1d');
-      setForecastData(result);
-    } catch (e: any) {
-      setError(e?.response?.data?.detail || 'Failed to fetch forecast');
-      setForecastData([]);
-    } finally {
-      setForecasting(false);
     }
   };
 
@@ -105,17 +103,59 @@ const StockSearch: React.FC = () => {
   }, [range]);
 
   /* =======================
-     Combined Chart Logic
+     Chart Data Preparation
      ======================= */
 
   const historicalLabels = priceData.map(p =>
     formatDateLabel(p.date)
   );
-  const forecastLabels = forecastData.map(p =>
-    formatDateLabel(p.date)
-  );
+
+  const forecastLabels =
+    forecastData
+      ? Object.values(forecastData)[0].series.map((p: any) =>
+          formatDateLabel(p.date)
+        )
+      : [];
 
   const combinedLabels = [...historicalLabels, ...forecastLabels];
+
+  const forecastDatasets =
+    forecastData
+      ? Object.entries(forecastData).flatMap(
+          ([horizon, data]: any) => [
+            {
+              label: `Forecast ${horizon}d`,
+              data: [
+                ...Array(priceData.length).fill(null),
+                ...data.series.map((p: any) => p.price),
+              ],
+              borderColor: HORIZON_COLORS[Number(horizon)],
+              borderDash: [4, 4],
+              tension: 0.4,
+            },
+            {
+              label: `Lower ${horizon}d`,
+              data: [
+                ...Array(priceData.length).fill(null),
+                ...data.series.map((p: any) => p.lower),
+              ],
+              borderColor: 'rgba(239, 68, 68, 0.4)',
+              borderDash: [2, 2],
+              tension: 0.4,
+            },
+            {
+              label: `Upper ${horizon}d`,
+              data: [
+                ...Array(priceData.length).fill(null),
+                ...data.series.map((p: any) => p.upper),
+              ],
+              borderColor: 'rgba(34, 197, 94, 0.4)',
+              borderDash: [2, 2],
+              tension: 0.4,
+            },
+          ]
+        )
+      : [];
 
   const combinedChartData = {
     labels: combinedLabels,
@@ -124,42 +164,12 @@ const StockSearch: React.FC = () => {
         label: 'Historical Close',
         data: [
           ...priceData.map(p => p.close),
-          ...Array(forecastData.length).fill(null),
+          ...Array(forecastLabels.length).fill(null),
         ],
         borderColor: 'rgb(59, 130, 246)',
-        backgroundColor: 'rgba(59, 130, 246, 0.15)',
         tension: 0.4,
       },
-      {
-        label: 'Forecast',
-        data: [
-          ...Array(priceData.length).fill(null),
-          ...forecastData.map(p => p.prediction),
-        ],
-        borderColor: 'rgb(168, 85, 247)',
-        borderDash: [2, 4],
-        tension: 0.4,
-      },
-      {
-        label: 'Lower Bound',
-        data: [
-          ...Array(priceData.length).fill(null),
-          ...forecastData.map(p => p.lower),
-        ],
-        borderColor: 'rgb(239, 68, 68)',
-        borderDash: [4, 4],
-        tension: 0.4,
-      },
-      {
-        label: 'Upper Bound',
-        data: [
-          ...Array(priceData.length).fill(null),
-          ...forecastData.map(p => p.upper),
-        ],
-        borderColor: 'rgb(34, 197, 94)',
-        borderDash: [4, 4],
-        tension: 0.4,
-      },
+      ...forecastDatasets,
     ],
   };
 
@@ -213,7 +223,24 @@ const StockSearch: React.FC = () => {
 
       {error && <p className="text-red-600 text-sm">{error}</p>}
 
-      {/* 📊 Combined Chart */}
+      {/* 📊 Trust Indicator */}
+      {trust && (
+        <div className="text-center">
+          <span
+            className={`px-3 py-1 rounded text-white font-semibold ${
+              trust.agreement === 'STRONG'
+                ? 'bg-green-600'
+                : trust.agreement === 'MODERATE'
+                ? 'bg-yellow-500'
+                : 'bg-red-600'
+            }`}
+          >
+            Forecast Confidence: {trust.agreement}
+          </span>
+        </div>
+      )}
+
+      {/* 📊 Chart */}
       <div className="border rounded p-4 shadow">
         {priceData.length > 0 && (
           <Line
@@ -221,13 +248,6 @@ const StockSearch: React.FC = () => {
             options={combinedChartOptions}
           />
         )}
-
-        <button
-          className="mt-4 bg-blue-600 text-white px-4 py-2 rounded"
-          onClick={forecastStockPrice}
-        >
-          {forecasting ? 'Forecasting...' : 'Forecast'}
-        </button>
       </div>
 
       {/* 📰 News */}
