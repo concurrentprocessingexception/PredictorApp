@@ -1,0 +1,35 @@
+import React from "react";
+import { NavLink } from "react-router-dom";
+
+const SideNav: React.FC = () => {
+  return (
+    <aside className="w-64 bg-white border-r p-4">
+      <h2 className="text-xl font-bold mb-6">📈 Stock Predictor</h2>
+
+      <nav className="flex flex-col gap-2">
+        <NavLink
+          to="/forecast"
+          className={({ isActive }) =>
+            `p-2 rounded ${
+              isActive ? "bg-blue-100 font-semibold" : "hover:bg-gray-100"
+            }`
+          }
+        >
+          Forecast & News
+        </NavLink>
+        <NavLink
+          to="/data"
+          className={({ isActive }) =>
+            `p-2 rounded ${
+              isActive ? "bg-blue-100 font-semibold" : "hover:bg-gray-100"
+            }`
+          }
+        >
+          Fetch Historical Data
+        </NavLink>
+      </nav>
+    </aside>
+  );
+};
+
+export default SideNav;
