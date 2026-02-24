@@ -9,7 +9,7 @@ const App: React.FC = () => {
     <Router>
       <Routes>
         <Route path="/" element={<AppLayout />}>
-          <Route index element={<Navigate to="/data" />} />
+          <Route index element={<Navigate to="/forecast" />} />
           <Route path="data" element={<DataPage />} />
           <Route path="forecast" element={<ForecastPage />} />
         </Route>

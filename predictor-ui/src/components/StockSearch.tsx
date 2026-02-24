@@ -1,30 +1,12 @@
 import React, { useEffect, useState } from 'react';
-import { Line } from 'react-chartjs-2';
-import {
-  Chart as ChartJS,
-  LineElement,
-  PointElement,
-  CategoryScale,
-  LinearScale,
-  Title,
-  Tooltip,
-  Legend,
-} from 'chart.js';
 import dayjs from 'dayjs';
 
 import { fetchStockHistory } from '../services/stockService';
 import { getForecastDashboard } from '../services/forecastService';
-import NewsPanel from './NewsPanel';
 
-ChartJS.register(
-  LineElement,
-  PointElement,
-  CategoryScale,
-  LinearScale,
-  Title,
-  Tooltip,
-  Legend
-);
+import HistoricalPriceChart from './HistoricalPriceChart';
+import ForecastPriceChart from './ForecastPriceChart';
+import NewsPanel from './NewsPanel';
 
 const ranges = [
   { label: '1D', value: '1d', days: 1 },
@@ -43,17 +25,21 @@ const HORIZON_COLORS: Record<number, string> = {
 const StockSearch: React.FC = () => {
   const [symbol, setSymbol] = useState('TSLA');
   const [range, setRange] = useState('1m');
-  const [error, setError] = useState('');
-  const [loading, setLoading] = useState(false);
+  const [model, setModel] = useState<'baseline' | 'prophet'>('baseline');
 
-  const [priceData, setPriceData] = useState<{
-    date: string;
-    close: number;
-  }[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+
+  const [priceData, setPriceData] = useState<
+    { date: string; close: number }[]
+  >([]);
 
   const [forecastData, setForecastData] = useState<any | null>(null);
   const [trust, setTrust] = useState<any | null>(null);
-  const [model, setModel] = useState<'baseline' | 'prophet'>('baseline');
+
+  /* =======================
+     Helpers
+     ======================= */
 
   const formatDateLabel = (dateStr: string) => {
     const d = new Date(dateStr);
@@ -61,6 +47,10 @@ const StockSearch: React.FC = () => {
       d.getMonth() + 1
     ).padStart(2, '0')}-${d.getFullYear()}`;
   };
+
+  /* =======================
+     Data Loaders
+     ======================= */
 
   const loadForecastDashboard = async (sym: string) => {
     try {
@@ -84,8 +74,8 @@ const StockSearch: React.FC = () => {
       const endDate = dayjs().format('YYYY-MM-DD');
       const startDate = dayjs().subtract(days, 'day').format('YYYY-MM-DD');
 
-      const result = await fetchStockHistory(symbol, startDate, endDate);
-      setPriceData(result);
+      const history = await fetchStockHistory(symbol, startDate, endDate);
+      setPriceData(history);
 
       await loadForecastDashboard(symbol);
     } catch (e: any) {
@@ -104,115 +94,12 @@ const StockSearch: React.FC = () => {
   }, [range, model]);
 
   /* =======================
-     Chart Data Preparation
+     Render
      ======================= */
-
-  const historicalLabels = priceData.map(p =>
-    formatDateLabel(p.date)
-  );
-
-  const forecastLabels =
-    forecastData
-      ? Object.values(forecastData)[0].series.map((p: any) =>
-          formatDateLabel(p.date)
-        )
-      : [];
-
-  const combinedLabels = [...historicalLabels, ...forecastLabels];
-
-  const forecastDatasets =
-  forecastData
-    ? Object.entries(forecastData).flatMap(
-        ([horizon, data]: any) => [
-          {
-            label: `Forecast ${horizon}d`,
-            data: [
-              ...Array(priceData.length).fill(null),
-              ...data.series.map((p: any) => p.price),
-            ],
-            borderColor: HORIZON_COLORS[Number(horizon)],
-            borderDash: [4, 4],
-            tension: 0.4,
-            yAxisID: 'forecast',
-          },
-          {
-            label: `Lower ${horizon}d`,
-            data: [
-              ...Array(priceData.length).fill(null),
-              ...data.series.map((p: any) => p.lower),
-            ],
-            borderColor: 'rgba(239, 68, 68, 0.4)',
-            borderDash: [2, 2],
-            tension: 0.4,
-            yAxisID: 'forecast',   // 🔑 SAME AXIS
-          },
-          {
-            label: `Upper ${horizon}d`,
-            data: [
-              ...Array(priceData.length).fill(null),
-              ...data.series.map((p: any) => p.upper),
-            ],
-            borderColor: 'rgba(34, 197, 94, 0.4)',
-            borderDash: [2, 2],
-            tension: 0.4,
-            yAxisID: 'forecast',   // 🔑 SAME AXIS
-          },
-        ]
-      )
-    : [];
-
-  const combinedChartData = {
-    labels: combinedLabels,
-    datasets: [
-      {
-        label: 'Historical Close',
-        data: [
-          ...priceData.map(p => p.close),
-          ...Array(forecastLabels.length).fill(null),
-        ],
-        borderColor: 'rgb(59, 130, 246)',
-        tension: 0.4,
-      },
-      ...forecastDatasets,
-    ],
-  };
-
-  const combinedChartOptions = {
-    responsive: true,
-    plugins: {
-      legend: { position: 'top' as const },
-      title: {
-        display: true,
-        text: `Price History & Forecast for ${symbol.toUpperCase()}`,
-      },
-    },
-    scales: {
-      x: {
-        ticks: { autoSkip: true },
-      },
-      y: {
-        position: 'left',
-        title: {
-          display: true,
-          text: 'Historical Price',
-        },
-      },
-      forecast: {
-        position: 'right',
-        grid: {
-          drawOnChartArea: false,
-        },
-        title: {
-          display: true,
-          text: 'Forecast Price',
-        },
-      },
-    },
-  };
 
   return (
     <div className="space-y-6">
-      {/* 🔍 Search */}
+      {/* 🔍 Search / Controls */}
       <div className="flex flex-col sm:flex-row gap-4">
         <input
           type="text"
@@ -237,7 +124,9 @@ const StockSearch: React.FC = () => {
         <select
           className="border p-2 w-full sm:w-40"
           value={model}
-          onChange={e => setModel(e.target.value as 'baseline' | 'prophet')}
+          onChange={e =>
+            setModel(e.target.value as 'baseline' | 'prophet')
+          }
         >
           <option value="baseline">Baseline</option>
           <option value="prophet">Prophet</option>
@@ -270,15 +159,26 @@ const StockSearch: React.FC = () => {
         </div>
       )}
 
-      {/* 📊 Chart */}
-      <div className="border rounded p-4 shadow">
-        {priceData.length > 0 && (
-          <Line
-            data={combinedChartData}
-            options={combinedChartOptions}
+      {/* 📈 Charts */}
+      {priceData.length > 0 && (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <HistoricalPriceChart
+            key={`hist-${symbol}-${range}`}
+            symbol={symbol}
+            priceData={priceData}
+            formatDateLabel={formatDateLabel}
           />
-        )}
-      </div>
+
+          <ForecastPriceChart
+            key={`forecast-${symbol}-${model}`}
+            symbol={symbol}
+            priceDataLength={priceData.length}
+            forecastData={forecastData}
+            formatDateLabel={formatDateLabel}
+            horizonColors={HORIZON_COLORS}
+          />
+        </div>
+      )}
 
       {/* 📰 News */}
       <NewsPanel searchSymbol={symbol} />
