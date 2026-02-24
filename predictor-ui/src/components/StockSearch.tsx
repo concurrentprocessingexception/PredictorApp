@@ -53,6 +53,7 @@ const StockSearch: React.FC = () => {
 
   const [forecastData, setForecastData] = useState<any | null>(null);
   const [trust, setTrust] = useState<any | null>(null);
+  const [model, setModel] = useState<'baseline' | 'prophet'>('baseline');
 
   const formatDateLabel = (dateStr: string) => {
     const d = new Date(dateStr);
@@ -63,7 +64,7 @@ const StockSearch: React.FC = () => {
 
   const loadForecastDashboard = async (sym: string) => {
     try {
-      const data = await getForecastDashboard(sym);
+      const data = await getForecastDashboard(sym, model);
       setForecastData(data.forecasts);
       setTrust(data.trust);
     } catch {
@@ -100,7 +101,7 @@ const StockSearch: React.FC = () => {
   useEffect(() => {
     handleSearch();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [range]);
+  }, [range, model]);
 
   /* =======================
      Chart Data Preparation
@@ -120,42 +121,45 @@ const StockSearch: React.FC = () => {
   const combinedLabels = [...historicalLabels, ...forecastLabels];
 
   const forecastDatasets =
-    forecastData
-      ? Object.entries(forecastData).flatMap(
-          ([horizon, data]: any) => [
-            {
-              label: `Forecast ${horizon}d`,
-              data: [
-                ...Array(priceData.length).fill(null),
-                ...data.series.map((p: any) => p.price),
-              ],
-              borderColor: HORIZON_COLORS[Number(horizon)],
-              borderDash: [4, 4],
-              tension: 0.4,
-            },
-            {
-              label: `Lower ${horizon}d`,
-              data: [
-                ...Array(priceData.length).fill(null),
-                ...data.series.map((p: any) => p.lower),
-              ],
-              borderColor: 'rgba(239, 68, 68, 0.4)',
-              borderDash: [2, 2],
-              tension: 0.4,
-            },
-            {
-              label: `Upper ${horizon}d`,
-              data: [
-                ...Array(priceData.length).fill(null),
-                ...data.series.map((p: any) => p.upper),
-              ],
-              borderColor: 'rgba(34, 197, 94, 0.4)',
-              borderDash: [2, 2],
-              tension: 0.4,
-            },
-          ]
-        )
-      : [];
+  forecastData
+    ? Object.entries(forecastData).flatMap(
+        ([horizon, data]: any) => [
+          {
+            label: `Forecast ${horizon}d`,
+            data: [
+              ...Array(priceData.length).fill(null),
+              ...data.series.map((p: any) => p.price),
+            ],
+            borderColor: HORIZON_COLORS[Number(horizon)],
+            borderDash: [4, 4],
+            tension: 0.4,
+            yAxisID: 'forecast',
+          },
+          {
+            label: `Lower ${horizon}d`,
+            data: [
+              ...Array(priceData.length).fill(null),
+              ...data.series.map((p: any) => p.lower),
+            ],
+            borderColor: 'rgba(239, 68, 68, 0.4)',
+            borderDash: [2, 2],
+            tension: 0.4,
+            yAxisID: 'forecast',   // 🔑 SAME AXIS
+          },
+          {
+            label: `Upper ${horizon}d`,
+            data: [
+              ...Array(priceData.length).fill(null),
+              ...data.series.map((p: any) => p.upper),
+            ],
+            borderColor: 'rgba(34, 197, 94, 0.4)',
+            borderDash: [2, 2],
+            tension: 0.4,
+            yAxisID: 'forecast',   // 🔑 SAME AXIS
+          },
+        ]
+      )
+    : [];
 
   const combinedChartData = {
     labels: combinedLabels,
@@ -186,6 +190,23 @@ const StockSearch: React.FC = () => {
       x: {
         ticks: { autoSkip: true },
       },
+      y: {
+        position: 'left',
+        title: {
+          display: true,
+          text: 'Historical Price',
+        },
+      },
+      forecast: {
+        position: 'right',
+        grid: {
+          drawOnChartArea: false,
+        },
+        title: {
+          display: true,
+          text: 'Forecast Price',
+        },
+      },
     },
   };
 
@@ -211,6 +232,15 @@ const StockSearch: React.FC = () => {
               {r.label}
             </option>
           ))}
+        </select>
+
+        <select
+          className="border p-2 w-full sm:w-40"
+          value={model}
+          onChange={e => setModel(e.target.value as 'baseline' | 'prophet')}
+        >
+          <option value="baseline">Baseline</option>
+          <option value="prophet">Prophet</option>
         </select>
 
         <button

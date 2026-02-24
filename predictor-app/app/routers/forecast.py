@@ -1,5 +1,3 @@
-# app/routers/forecast.py
-
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 import pandas as pd
@@ -115,11 +113,12 @@ def get_forecast_trust(
 @router.get("/dashboard/{symbol}")
 def get_forecast_dashboard(
     symbol: str,
+    model: str = "baseline",
     db: Session = Depends(get_db),
 ):
     symbol = symbol.upper()
 
-    forecasts = get_latest_forecasts_all_horizons(db, symbol)
+    forecasts = get_latest_forecasts_all_horizons(db, symbol.upper(), model)
     if not forecasts:
         return {"error": "No forecasts available"}
 

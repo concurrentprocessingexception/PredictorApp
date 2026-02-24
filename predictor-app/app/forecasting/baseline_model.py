@@ -20,7 +20,7 @@ class NaiveBaselineForecaster(BaseForecaster):
 
     @property
     def model_name(self) -> str:
-        return "naive_baseline"
+        return "baseline"
 
     @property
     def model_version(self) -> str:

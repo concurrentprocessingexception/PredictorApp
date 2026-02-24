@@ -39,10 +39,16 @@ export interface ForecastDashboardResponse {
    ========================= */
 
 export async function getForecastDashboard(
-  symbol: string
+  symbol: string,
+  model: 'baseline' | 'prophet' = 'baseline'
 ): Promise<ForecastDashboardResponse> {
   const response = await axios.get(
-    `${API_BASE}/forecast/dashboard/${symbol}`
+    `${API_BASE}/forecast/dashboard/${symbol}`,
+    {
+      params: {
+        model
+      }
+    }
   );
   return response.data;
 }
