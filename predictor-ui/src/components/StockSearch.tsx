@@ -1,6 +1,4 @@
-// StockSearch.tsx
-
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Line } from 'react-chartjs-2';
 import {
   Chart as ChartJS,
@@ -10,11 +8,13 @@ import {
   LinearScale,
   Title,
   Tooltip,
-  Legend
+  Legend,
 } from 'chart.js';
-import { fetchStockHistory } from '../services/stockService';
-import NewsPanel from './NewsPanel';
 import dayjs from 'dayjs';
+
+import { fetchStockHistory } from '../services/stockService';
+import { getForecastDashboard } from '../services/forecastService';
+import NewsPanel from './NewsPanel';
 
 ChartJS.register(
   LineElement,
@@ -34,38 +34,64 @@ const ranges = [
   { label: '1Y', value: '1y', days: 365 },
 ];
 
+const HORIZON_COLORS: Record<number, string> = {
+  5: 'rgb(168, 85, 247)',   // purple
+  10: 'rgb(249, 115, 22)', // orange
+  20: 'rgb(34, 197, 94)',  // green
+};
+
 const StockSearch: React.FC = () => {
   const [symbol, setSymbol] = useState('TSLA');
   const [range, setRange] = useState('1m');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
-  // const [priceData, setPriceData] = useState<{ date: string; close: number }[]>([]);
   const [priceData, setPriceData] = useState<{
     date: string;
-    open: number;
-    high: number;
-    low: number;
     close: number;
-    adj_close: number;
-    volume: number;
   }[]>([]);
 
+  const [forecastData, setForecastData] = useState<any | null>(null);
+  const [trust, setTrust] = useState<any | null>(null);
+
+  const formatDateLabel = (dateStr: string) => {
+    const d = new Date(dateStr);
+    return `${String(d.getDate()).padStart(2, '0')}-${String(
+      d.getMonth() + 1
+    ).padStart(2, '0')}-${d.getFullYear()}`;
+  };
+
+  const loadForecastDashboard = async (sym: string) => {
+    try {
+      const data = await getForecastDashboard(sym);
+      setForecastData(data.forecasts);
+      setTrust(data.trust);
+    } catch {
+      setForecastData(null);
+      setTrust(null);
+    }
+  };
 
   const handleSearch = async () => {
     setLoading(true);
     setError('');
+
     try {
       const selectedRange = ranges.find(r => r.value === range);
-      const days = selectedRange?.days || 30;
+      const days = selectedRange?.days ?? 30;
+
       const endDate = dayjs().format('YYYY-MM-DD');
       const startDate = dayjs().subtract(days, 'day').format('YYYY-MM-DD');
 
       const result = await fetchStockHistory(symbol, startDate, endDate);
       setPriceData(result);
+
+      await loadForecastDashboard(symbol);
     } catch (e: any) {
       setError(e?.response?.data?.detail || 'Failed to fetch data');
       setPriceData([]);
+      setForecastData(null);
+      setTrust(null);
     } finally {
       setLoading(false);
     }
@@ -76,121 +102,156 @@ const StockSearch: React.FC = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [range]);
 
-  /* 
-  const chartData = {
-    labels: priceData.map(p => p.date),
+  /* =======================
+     Chart Data Preparation
+     ======================= */
+
+  const historicalLabels = priceData.map(p =>
+    formatDateLabel(p.date)
+  );
+
+  const forecastLabels =
+    forecastData
+      ? Object.values(forecastData)[0].series.map((p: any) =>
+          formatDateLabel(p.date)
+        )
+      : [];
+
+  const combinedLabels = [...historicalLabels, ...forecastLabels];
+
+  const forecastDatasets =
+    forecastData
+      ? Object.entries(forecastData).flatMap(
+          ([horizon, data]: any) => [
+            {
+              label: `Forecast ${horizon}d`,
+              data: [
+                ...Array(priceData.length).fill(null),
+                ...data.series.map((p: any) => p.price),
+              ],
+              borderColor: HORIZON_COLORS[Number(horizon)],
+              borderDash: [4, 4],
+              tension: 0.4,
+            },
+            {
+              label: `Lower ${horizon}d`,
+              data: [
+                ...Array(priceData.length).fill(null),
+                ...data.series.map((p: any) => p.lower),
+              ],
+              borderColor: 'rgba(239, 68, 68, 0.4)',
+              borderDash: [2, 2],
+              tension: 0.4,
+            },
+            {
+              label: `Upper ${horizon}d`,
+              data: [
+                ...Array(priceData.length).fill(null),
+                ...data.series.map((p: any) => p.upper),
+              ],
+              borderColor: 'rgba(34, 197, 94, 0.4)',
+              borderDash: [2, 2],
+              tension: 0.4,
+            },
+          ]
+        )
+      : [];
+
+  const combinedChartData = {
+    labels: combinedLabels,
     datasets: [
       {
-        label: `${symbol.toUpperCase()} (${range.toUpperCase()})`,
-        data: priceData.map(p => p.close),
+        label: 'Historical Close',
+        data: [
+          ...priceData.map(p => p.close),
+          ...Array(forecastLabels.length).fill(null),
+        ],
         borderColor: 'rgb(59, 130, 246)',
-        backgroundColor: 'rgba(59, 130, 246, 0.2)',
-        tension: 0.4
-      }
-    ]
-  };
-  */
-  const formatDateLabel = (dateStr: string) => {
-    const d = new Date(dateStr);
-    const day = String(d.getDate()).padStart(2, "0");
-    const month = String(d.getMonth() + 1).padStart(2, "0");
-    const year = d.getFullYear();
-    return `${day}-${month}-${year}`;
+        tension: 0.4,
+      },
+      ...forecastDatasets,
+    ],
   };
 
-
-  const labels = priceData.map((item: any) => formatDateLabel(item.date));
-
-  const chartData = {
-    labels,
-    datasets: [
-      {
-        label: 'Close',
-        data: priceData.map(p => p.close),
-        borderColor: 'rgb(59, 130, 246)',
-        backgroundColor: 'rgba(59, 130, 246, 0.2)',
-        tension: 0.4
-      },
-      {
-        label: 'High',
-        data: priceData.map(p => p.high),
-        borderColor: 'rgb(34, 197, 94)',
-        borderDash: [5, 5],
-        fill: false,
-        tension: 0.4
-      },
-      {
-        label: 'Low',
-        data: priceData.map(p => p.low),
-        borderColor: 'rgb(239, 68, 68)',
-        borderDash: [5, 5],
-        fill: false,
-        tension: 0.4
-      },
-    ]
-  };
-
-
-  const chartOptions = {
+  const combinedChartOptions = {
     responsive: true,
     plugins: {
-      legend: { position: 'top' },
+      legend: { position: 'top' as const },
       title: {
         display: true,
-        text: `Price Trend for ${symbol.toUpperCase()}`
+        text: `Price History & Forecast for ${symbol.toUpperCase()}`,
       },
     },
     scales: {
       x: {
-        ticks: {
-          autoSkip: true,
-        }
-      }
-    }
+        ticks: { autoSkip: true },
+      },
+    },
   };
 
   return (
-    <div>
-      {/* 🔍 Search + Range */}
-      <div className="mb-6 flex flex-col sm:flex-row gap-4">
+    <div className="space-y-6">
+      {/* 🔍 Search */}
+      <div className="flex flex-col sm:flex-row gap-4">
         <input
           type="text"
           className="border p-2 w-full sm:w-72"
           placeholder="Enter Symbol (e.g., TSLA)"
           value={symbol}
-          onChange={(e) => setSymbol(e.target.value.toUpperCase())}
+          onChange={e => setSymbol(e.target.value.toUpperCase())}
         />
+
         <select
           className="border p-2 w-full sm:w-40"
           value={range}
-          onChange={(e) => setRange(e.target.value)}
+          onChange={e => setRange(e.target.value)}
         >
-          {ranges.map((r) => (
-            <option key={r.value} value={r.value}>{r.label}</option>
+          {ranges.map(r => (
+            <option key={r.value} value={r.value}>
+              {r.label}
+            </option>
           ))}
         </select>
+
         <button
-          className="bg-blue-600 text-white px-4 py-2 rounded w-full sm:w-auto"
+          className="bg-blue-600 text-white px-4 py-2 rounded"
           onClick={handleSearch}
         >
           {loading ? 'Loading...' : 'Search'}
         </button>
       </div>
 
-      {error && <p className="text-red-600 text-sm mb-4">{error}</p>}
+      {error && <p className="text-red-600 text-sm">{error}</p>}
 
-      {/* 📊 Chart + 📰 News Panel */}
-      <div className="flex flex-col lg:flex-row gap-6">
-        {/* Chart */}
-        <div className="w-full lg:w-2/3 border rounded p-4 shadow">
-          {priceData.length > 0 && <Line data={chartData} options={chartOptions} />}
+      {/* 📊 Trust Indicator */}
+      {trust && (
+        <div className="text-center">
+          <span
+            className={`px-3 py-1 rounded text-white font-semibold ${
+              trust.agreement === 'STRONG'
+                ? 'bg-green-600'
+                : trust.agreement === 'MODERATE'
+                ? 'bg-yellow-500'
+                : 'bg-red-600'
+            }`}
+          >
+            Forecast Confidence: {trust.agreement}
+          </span>
         </div>
+      )}
 
-        {/* News */}
-        <div className="w-full lg:w-1/3">
-          <NewsPanel searchSymbol={symbol} />
-        </div>
+      {/* 📊 Chart */}
+      <div className="border rounded p-4 shadow">
+        {priceData.length > 0 && (
+          <Line
+            data={combinedChartData}
+            options={combinedChartOptions}
+          />
+        )}
       </div>
+
+      {/* 📰 News */}
+      <NewsPanel searchSymbol={symbol} />
     </div>
   );
 };
