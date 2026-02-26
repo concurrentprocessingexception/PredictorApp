@@ -6,3 +6,4 @@ from .forecast_run import ForecastRun
 from .forecast_point import ForecastPoint
 from .forecast_interval import ForecastInterval
 from .forecast_scenario import ForecastScenario
+from .forecast_error import ForecastError

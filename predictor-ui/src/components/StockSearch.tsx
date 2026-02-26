@@ -36,6 +36,8 @@ const StockSearch: React.FC = () => {
 
   const [forecastData, setForecastData] = useState<any | null>(null);
   const [trust, setTrust] = useState<any | null>(null);
+  const [recommendedModel, setRecommendedModel] = useState<string | null>(null);
+  const [modelComparisonStatus, setModelComparisonStatus] = useState<string | null>(null);
 
   /* =======================
      Helpers
@@ -51,6 +53,22 @@ const StockSearch: React.FC = () => {
   /* =======================
      Data Loaders
      ======================= */
+
+  const loadModelRecommendation = async (sym: string) => {
+    try {
+      // We use the shortest horizon (5d) as canonical
+      const res = await fetch(
+        `/models/compare?symbol=${sym}&horizon_days=5`
+      );
+      const data = await res.json();
+
+      setModelComparisonStatus(data.status);
+      setRecommendedModel(data.recommended_model);
+    } catch {
+      setModelComparisonStatus(null);
+      setRecommendedModel(null);
+    }
+  };
 
   const loadForecastDashboard = async (sym: string) => {
     try {
@@ -78,6 +96,7 @@ const StockSearch: React.FC = () => {
       setPriceData(history);
 
       await loadForecastDashboard(symbol);
+      await loadModelRecommendation(symbol);
     } catch (e: any) {
       setError(e?.response?.data?.detail || 'Failed to fetch data');
       setPriceData([]);
@@ -131,6 +150,28 @@ const StockSearch: React.FC = () => {
           <option value="baseline">Baseline</option>
           <option value="prophet">Prophet</option>
         </select>
+
+        {recommendedModel && modelComparisonStatus === 'OK' && (
+          <div className="flex items-center gap-2 text-sm mt-1">
+            <span className="text-gray-600">Recommended model:</span>
+
+            <span
+              className={`px-2 py-0.5 rounded font-semibold ${
+                recommendedModel === model
+                  ? 'bg-green-100 text-green-800'
+                  : 'bg-yellow-100 text-yellow-800'
+              }`}
+            >
+              {recommendedModel.toUpperCase()}
+            </span>
+
+            {recommendedModel !== model && (
+              <span className="text-xs text-gray-500">
+                (based on recent accuracy)
+              </span>
+            )}
+          </div>
+        )}
 
         <button
           className="bg-blue-600 text-white px-4 py-2 rounded"

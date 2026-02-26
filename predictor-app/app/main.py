@@ -6,6 +6,9 @@ from app.routers.news import get_company_news
 from app.routers.upload import router as upload_router
 from app.routers.history import router as history_router
 from app.routers.forecast import router as forecast_router
+from app.routers.reconciliation import router as reconciliation_router
+from app.routers.forecast_metrics import router as forecast_metrics_router
+from app.routers.model_comparison import router as model_comparison_router
 
 import yfinance as yf
 import os
@@ -26,6 +29,9 @@ app.add_middleware(
 # register routers
 app.include_router(history_router)
 app.include_router(forecast_router)
+app.include_router(reconciliation_router)
+app.include_router(forecast_metrics_router)
+app.include_router(model_comparison_router)
 
 # conditional upload route
 if settings.upload_enabled:

@@ -36,10 +36,12 @@ def persist_forecast(
     db.flush()  # get run.id
 
     for row in results:
+
+        target_date = row["date"]
         db.add(
             ForecastPoint(
                 forecast_run_id=run.id,
-                forecast_date=row["date"],
+                forecast_date=target_date,
                 predicted_price=row["yhat"],
             )
         )
@@ -48,7 +50,7 @@ def persist_forecast(
             db.add(
                 ForecastInterval(
                     forecast_run_id=run.id,
-                    forecast_date=row["date"],
+                    forecast_date=target_date,
                     lower_bound=row["yhat_lower"],
                     upper_bound=row["yhat_upper"],
                     confidence_level=0.95,
@@ -79,3 +81,22 @@ def cleanup_old_runs(db: Session, run: ForecastRun):
             ForecastRun.id.in_([r.id for r in old_ids])
         ).delete(synchronize_session=False)
         db.commit()
+
+def get_forecast_for_target_date(
+    db: Session,
+    *,
+    symbol: str,
+    model_name: str,
+    target_date: date,
+):
+    return (
+        db.query(ForecastPoint, ForecastRun)
+        .join(ForecastRun, ForecastPoint.forecast_run_id == ForecastRun.id)
+        .filter(
+            ForecastRun.symbol == symbol,
+            ForecastRun.model_name == model_name,
+            ForecastPoint.forecast_date == target_date,
+            ForecastRun.status == "SUCCESS",
+        )
+        .all()
+    )

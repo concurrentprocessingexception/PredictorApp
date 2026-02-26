@@ -1,56 +1,123 @@
+from typing import Dict, Any
 
-def compute_direction(series):
-    if len(series) < 2:
-        return "FLAT"
+from sqlalchemy.orm import Session
 
-    start = series[0]["price"]
-    end = series[-1]["price"]
-
-    if end > start:
-        return "UP"
-    elif end < start:
-        return "DOWN"
-    return "FLAT"
+from app.services.forecast_error_analytics import get_error_metrics
+from app.services.confidence_calibration import calibrate_confidence
+from app.services.model_comparison import compare_models_for_horizon
 
 
-def compute_band_width(series):
-    widths = []
-    for p in series:
-        if p["lower"] is not None and p["upper"] is not None:
-            widths.append(p["upper"] - p["lower"])
-    return sum(widths) / len(widths) if widths else None
-
-
-def compare_horizons(forecasts: dict):
+def compare_horizons(
+    forecasts: Dict[int, Any],
+    *,
+    db: Session | None = None,
+    symbol: str | None = None,
+    model_name: str | None = None,
+):
     """
-    forecasts: {horizon: forecast_data}
-    """
-    comparison = {}
+    Compare forecast horizons and compute trust / confidence.
 
-    directions = {}
+    This function produces:
+    - horizon agreement (model-based)
+    - base confidence score
+    - performance-calibrated confidence score (Step 4A)
 
-    for horizon, data in forecasts.items():
-        series = data["series"]
-        direction = compute_direction(series)
-        band_width = compute_band_width(series)
-
-        comparison[horizon] = {
-            "direction": direction,
-            "avg_band_width": band_width,
+    forecasts:
+        {
+          5: { "series": [...] },
+          10: { "series": [...] },
+          20: { "series": [...] }
         }
+    """
 
-        directions[horizon] = direction
+    horizons = sorted(forecasts.keys())
 
-    # Agreement logic
-    unique_dirs = set(directions.values())
-    if len(unique_dirs) == 1:
-        agreement = "STRONG"
-    elif len(unique_dirs) == 2 and "FLAT" in unique_dirs:
-        agreement = "MODERATE"
-    else:
+    # ------------------------------------------------------------
+    # Step 1: Model-based agreement (existing logic)
+    # ------------------------------------------------------------
+
+    if len(horizons) < 2:
+        base_score = 60
         agreement = "WEAK"
+    else:
+        last_values = [
+            forecasts[h]["series"][-1]["price"]
+            for h in horizons
+            if forecasts[h]["series"]
+        ]
 
-    return {
-        "per_horizon": comparison,
+        spread = max(last_values) - min(last_values)
+        avg_price = sum(last_values) / len(last_values)
+
+        if avg_price == 0:
+            agreement = "WEAK"
+            base_score = 60
+        else:
+            spread_pct = spread / avg_price
+
+            if spread_pct < 0.03:
+                agreement = "STRONG"
+                base_score = 100
+            elif spread_pct < 0.07:
+                agreement = "MODERATE"
+                base_score = 80
+            else:
+                agreement = "WEAK"
+                base_score = 60
+
+    trust = {
         "agreement": agreement,
+        "base_score": base_score,
+        "final_score": base_score,
+        "calibration_reasons": [],
+        "horizons": horizons,
     }
+
+    # ------------------------------------------------------------
+    # Step 2: Performance-based calibration (Step 4A)
+    # ------------------------------------------------------------
+
+    # We only calibrate if DB + symbol + model are provided
+    if db and symbol and model_name:
+        horizon_scores = {}
+        calibration_notes = {}
+
+        for horizon in horizons:
+            metrics = get_error_metrics(
+                db=db,
+                symbol=symbol,
+                model_name=model_name,
+                horizon_days=horizon,
+                lookback_days=30,
+            )
+
+            comparison = compare_models_for_horizon(
+                db=db,
+                symbol=symbol,
+                horizon_days=horizon,
+                lookback_days=30,
+            )
+
+            recommended_model = comparison.get("recommended_model")
+
+            calibrated_score, reasons = calibrate_confidence(
+                base_score=base_score,
+                error_metrics=metrics,
+                active_model=model_name,
+                recommended_model=recommended_model,
+            )
+
+            horizon_scores[horizon] = calibrated_score
+
+            calibration_notes[horizon] = {
+                "metrics": metrics,
+                "reasons": reasons,
+                "recommended_model": recommended_model,
+            }
+
+        # Conservative aggregation:
+        # use the **worst** calibrated horizon
+        trust["final_score"] = min(horizon_scores.values())
+        trust["calibration_reasons"] = calibration_notes
+
+    return trust
