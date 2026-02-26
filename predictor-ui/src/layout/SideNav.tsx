@@ -8,6 +8,26 @@ const SideNav: React.FC = () => {
 
       <nav className="flex flex-col gap-2">
         <NavLink
+          to="/live"
+          className={({ isActive }) =>
+            `p-2 rounded ${
+              isActive ? "bg-blue-100 font-semibold" : "hover:bg-gray-100"
+            }`
+          }
+        >
+          Live Market
+        </NavLink>
+        <NavLink
+          to="/forecasting"
+          className={({ isActive }) =>
+            `p-2 rounded ${
+              isActive ? "bg-blue-100 font-semibold" : "hover:bg-gray-100"
+            }`
+          }
+        >
+          Forecasting
+        </NavLink>
+        <NavLink
           to="/forecast"
           className={({ isActive }) =>
             `p-2 rounded ${
@@ -15,10 +35,10 @@ const SideNav: React.FC = () => {
             }`
           }
         >
-          Forecast & News
+          Forecast Analysis
         </NavLink>
         <NavLink
-          to="/data"
+          to="/historicaldata"
           className={({ isActive }) =>
             `p-2 rounded ${
               isActive ? "bg-blue-100 font-semibold" : "hover:bg-gray-100"

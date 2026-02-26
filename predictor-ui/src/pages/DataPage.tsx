@@ -1,7 +1,7 @@
 import React from "react";
 import UploadPanel from "../components/UploadPanel";
 
-const DataPage: React.FC = () => {
+const HistoricalDataPage: React.FC = () => {
   return (
     <>
       <h1 className="text-2xl font-bold mb-4">Fetch Historical Data</h1>
@@ -10,4 +10,4 @@ const DataPage: React.FC = () => {
   );
 };
 
-export default DataPage;
+export default HistoricalDataPage;
