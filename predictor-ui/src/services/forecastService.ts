@@ -52,3 +52,22 @@ export async function getForecastDashboard(
   );
   return response.data;
 }
+
+/* =========================
+   API Call - Forecast Evaluation
+   ========================= */
+
+export const getForecastEvaluation = async (
+  symbol: string,
+  model: string
+) => {
+  const res = await fetch(
+    `${API_BASE}/forecast/evaluation/${symbol}?model=${model}`
+  );
+
+  if (!res.ok) {
+    throw new Error("Failed to fetch forecast evaluation");
+  }
+
+  return await res.json();
+};

@@ -27,7 +27,7 @@ const UploadPanel: React.FC = () => {
     setLoading(true);
 
     try {
-      const response = await axios.post('http://localhost:8000/stocks/fetch-historical', {
+      const response = await axios.post('http://localhost:8000/stocks/history/', {
         symbol,
         start_date: startDate,
         end_date: endDate,

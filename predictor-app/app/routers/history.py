@@ -13,7 +13,7 @@ import logging
 from app.database import get_db
 
 
-router = APIRouter(prefix="/stocks", tags=["Stocks"])
+router = APIRouter(prefix="/stocks/history", tags=["StocksHistory"])
 
 # Configure logging: set level and format
 logging.basicConfig(
@@ -28,7 +28,11 @@ class FetchHistoricalRequest(BaseModel):
     interval: Literal['1d'] = '1d'
 
 
-@router.post("/fetch-historical")
+"""
+    This router provides endpoints to fetch historical stock price data from yfinance 
+    and store it in the database, for a given stock symbol and date range.
+"""
+@router.post("/")
 def fetch_historical(data: FetchHistoricalRequest, db: Session = Depends(get_db)):
     symbol = data.symbol.upper()
 
@@ -113,7 +117,7 @@ def fetch_historical(data: FetchHistoricalRequest, db: Session = Depends(get_db)
     }
 
 
-@router.get("/history/{symbol}")
+@router.get("/{symbol}")
 def get_stock_history(
     symbol: str,
     start_date: Optional[str] = Query(None, description="Start date in YYYY-MM-DD"),

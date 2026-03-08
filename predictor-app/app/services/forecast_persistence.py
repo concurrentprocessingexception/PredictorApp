@@ -14,11 +14,17 @@ def persist_forecast(
     model_name: str,
     model_version: str,
     horizon_days: int,
+    forecast_from_date: date | None,
+    forecast_to_date: date | None,
     run_type: str,  # AUTO | MANUAL
     train_start: date,
     train_end: date,
     results: list,
 ):
+    """
+    Persists a forecast run and its forecast points.
+    """
+
     run = ForecastRun(
         symbol=symbol,
         model_name=model_name,
@@ -26,6 +32,8 @@ def persist_forecast(
         horizon_days=horizon_days,
         price_basis="ADJUSTED",
         run_type=run_type,
+        forecast_from_date=forecast_from_date,
+        forecast_to_date=forecast_to_date,
         train_start_date=train_start,
         train_end_date=train_end,
         data_hash=f"{symbol}:{train_start}:{train_end}",
@@ -38,6 +46,7 @@ def persist_forecast(
     for row in results:
 
         target_date = row["date"]
+
         db.add(
             ForecastPoint(
                 forecast_run_id=run.id,
@@ -58,10 +67,15 @@ def persist_forecast(
             )
 
     db.commit()
+
     cleanup_old_runs(db, run)
 
 
 def cleanup_old_runs(db: Session, run: ForecastRun):
+    """
+    Keeps only the most recent N forecast runs per model.
+    """
+
     old_ids = (
         db.query(ForecastRun.id)
         .filter(
@@ -80,7 +94,9 @@ def cleanup_old_runs(db: Session, run: ForecastRun):
         db.query(ForecastRun).filter(
             ForecastRun.id.in_([r.id for r in old_ids])
         ).delete(synchronize_session=False)
+
         db.commit()
+
 
 def get_forecast_for_target_date(
     db: Session,
@@ -89,6 +105,10 @@ def get_forecast_for_target_date(
     model_name: str,
     target_date: date,
 ):
+    """
+    Returns forecasts for a specific symbol and forecast date.
+    """
+
     return (
         db.query(ForecastPoint, ForecastRun)
         .join(ForecastRun, ForecastPoint.forecast_run_id == ForecastRun.id)

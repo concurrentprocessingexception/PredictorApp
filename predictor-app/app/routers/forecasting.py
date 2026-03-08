@@ -19,6 +19,7 @@ def initiate_forecast_run(
 ):
     symbol = request.symbol.upper()
     model = request.model.lower()
+    horizon = request.horizon
 
     prices = (
         db.query(StockPrice)
@@ -49,34 +50,34 @@ def initiate_forecast_run(
 
     results = []
 
-    for horizon in DEFAULT_HORIZONS:
-        try:
-            # 🔑 SINGLE SOURCE OF TRUTH
-            run = run_and_persist_forecast(
-                db=db,
-                symbol=symbol,
-                historical_df=df,
-                model_type=model,
-                horizon_days=horizon,
-                run_type="MANUAL",
-            )
+    
+    try:
+        # 🔑 SINGLE SOURCE OF TRUTH
+        run = run_and_persist_forecast(
+            db=db,
+            symbol=symbol,
+            historical_df=df,
+            model_type=model,
+            horizon_days=horizon,
+            run_type="MANUAL",
+        )
 
-            results.append(
-                {
-                    "run_id": run.id,
-                    "horizon_days": horizon,
-                    "status": "completed",
-                }
-            )
+        results.append(
+            {
+                "run_id": run.id,
+                "horizon_days": horizon,
+                "status": "completed",
+            }
+        )
 
-        except Exception as e:
-            results.append(
-                {
-                    "horizon_days": horizon,
-                    "status": "failed",
-                    "error": str(e),
-                }
-            )
+    except Exception as e:
+        results.append(
+            {
+                "horizon_days": horizon,
+                "status": "failed",
+                "error": str(e),
+            }
+        )
 
     return {
         "symbol": symbol,

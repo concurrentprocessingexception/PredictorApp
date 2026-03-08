@@ -10,9 +10,36 @@ from app.config.forecast_config import DEFAULT_HORIZONS
 from app.services.forecast_reader import get_latest_forecast_for_horizon
 from app.services.forecast_reader import get_latest_forecasts_all_horizons
 from app.services.forecast_trust import compare_horizons
+from app.schemas.forecast_evaluation import ForecastEvaluationPoint
+from app.services.forecast_evaluation_service import get_forecast_evaluation
+from app.services.forecast_history_service import get_forecast_history
 
 router = APIRouter(prefix="/forecast", tags=["Forecast"])
 
+
+@router.get("/history/{symbol}")
+def forecast_history(
+    symbol: str, 
+    model: str, 
+    horizon_days: int | None = None,
+    db: Session = Depends(get_db)):
+    """
+    Returns last 30 days of forecast runs for a symbol
+    """
+    return get_forecast_history(db, symbol.upper(), model, horizon_days)
+
+@router.get("/evaluation/{symbol}", response_model=list[ForecastEvaluationPoint])
+def forecast_evaluation(
+    symbol: str,
+    model: str,
+    db: Session = Depends(get_db),
+):
+    """
+    Compare predicted vs actual prices for the latest successful forecast run.
+    Always evaluates the 5-day horizon.
+    """
+
+    return get_forecast_evaluation(db, symbol.upper(), model)
 
 @router.post("/run")
 def run_forecast_endpoint(

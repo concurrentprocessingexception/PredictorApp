@@ -5,6 +5,7 @@ import HistoricalDataPage from "./pages/DataPage";
 import ForecastPage from "./pages/ForecastPage";
 import LivePage from "./pages/Live";
 import InitiateForecastPage from "./pages/InitiateForecastPage";
+import ForecastHistoryPage from "./pages/ForecastHistoryPage";
 
 const App: React.FC = () => {
   return (
@@ -12,10 +13,11 @@ const App: React.FC = () => {
       <Routes>
         <Route path="/" element={<AppLayout />}>
           <Route index element={<Navigate to="/live" />} />
-          <Route path="historicaldata" element={<HistoricalDataPage />} />
           <Route path="live" element={<LivePage />} />
-          <Route path="forecast" element={<ForecastPage />} />
           <Route path="forecasting" element={<InitiateForecastPage />} />
+          <Route path="forecast" element={<ForecastPage />} />
+          <Route path="forecasthistory" element={<ForecastHistoryPage />} />
+          <Route path="historicaldata" element={<HistoricalDataPage />} />
         </Route>
       </Routes>
     </Router>

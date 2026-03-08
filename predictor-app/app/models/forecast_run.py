@@ -13,6 +13,10 @@ class ForecastRun(Base):
     model_version = Column(String, nullable=False)
 
     horizon_days = Column(Integer, nullable=False)
+    
+    forecast_from_date = Column(Date, nullable=True)
+    forecast_to_date = Column(Date, nullable=True)
+
     price_basis = Column(String, nullable=False)  # RAW | ADJUSTED
     run_type = Column(String, nullable=False)     # AUTO | MANUAL
 

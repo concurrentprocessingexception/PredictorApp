@@ -7,6 +7,7 @@ import { getForecastDashboard } from '../services/forecastService';
 import HistoricalPriceChart from './HistoricalPriceChart';
 import ForecastPriceChart from './ForecastPriceChart';
 import NewsPanel from './NewsPanel';
+import ForecastAccuracyChart from './ForecastAccuracyChart';
 
 const ranges = [
   { label: '1D', value: '1d', days: 1 },
@@ -218,6 +219,13 @@ const StockSearch: React.FC = () => {
             formatDateLabel={formatDateLabel}
             horizonColors={HORIZON_COLORS}
           />
+        </div>
+      )}
+
+      {/* 📉 Forecast Accuracy */}
+      {priceData.length > 0 && (
+        <div className="bg-white p-4 rounded shadow">
+          <ForecastAccuracyChart symbol={symbol} model={model} />
         </div>
       )}
 

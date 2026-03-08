@@ -9,7 +9,7 @@ A FastAPI endpoint to get forecast error metrics (MAE, MAPE) for a given symbol/
 """
 
 
-router = APIRouter(prefix="/metrics", tags=["Forecast Metrics"])
+router = APIRouter(prefix="/forecast/metrics", tags=["Forecast Metrics"])
 
 
 @router.get("/error")

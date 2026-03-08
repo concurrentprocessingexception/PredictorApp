@@ -4,6 +4,9 @@ import type { ForecastRun } from "../types/forecast";
 export interface InitiateForecastRequest {
   symbol: string;
   model: string;
+  horizon: number;
+  from_date?: string;
+  to_date?: string;
 }
 
 export interface InitiateForecastResponse {

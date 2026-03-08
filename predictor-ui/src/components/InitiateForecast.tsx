@@ -8,12 +8,16 @@ import type { ForecastRun } from "../types/forecast";
 const InitiateForecast: React.FC = () => {
   const [symbol, setSymbol] = useState("TSLA");
   const [model, setModel] = useState("prophet");
+  const [horizon, setHorizon] = useState(5);
 
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
 
   const [runs, setRuns] = useState<ForecastRun[]>([]);
   const [loadingRuns, setLoadingRuns] = useState(true);
+
+  const [fromDate, setFromDate] = useState("");
+  const [toDate, setToDate] = useState("");
 
   /* =========================
      Load previous forecast runs
@@ -50,6 +54,9 @@ const InitiateForecast: React.FC = () => {
       await initiateStockForecasting({
         symbol,
         model,
+        horizon,
+        from_date: fromDate || undefined,
+        to_date: toDate || undefined,
       });
 
       setMessage("✅ Forecast initiated successfully");
@@ -112,6 +119,43 @@ const InitiateForecast: React.FC = () => {
             <option value="prophet">Prophet</option>
             <option value="baseline">Baseline</option>
           </select>
+        </div>
+
+        {/* Horizon */}
+        <div className="mb-4">
+          <label className="block font-medium mb-1">Horizon</label>
+          <select
+            className="border rounded px-3 py-2 w-full"
+            value={horizon}
+            onChange={(e) => setHorizon(parseInt(e.target.value) || 5)}
+          >
+            <option value="5">5 Trading Days</option>
+            <option value="10">10 Trading Days</option>
+            <option value="20">20 Trading Days</option>
+          </select>
+
+        </div>
+
+        {/* From Date */}
+        <div className="mb-4">
+          <label className="block font-medium mb-1">From Date (optional)</label>
+          <input
+            type="date"
+            className="border rounded px-3 py-2 w-full"
+            value={fromDate}
+            onChange={(e) => setFromDate(e.target.value)}
+          />
+        </div>
+
+        {/* To Date */}
+        <div className="mb-6">
+          <label className="block font-medium mb-1">To Date (optional)</label>
+          <input
+            type="date"
+            className="border rounded px-3 py-2 w-full"
+            value={toDate}
+            onChange={(e) => setToDate(e.target.value)}
+          />
         </div>
 
         <button

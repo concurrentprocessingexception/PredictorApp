@@ -25,7 +25,7 @@ const SideNav: React.FC = () => {
             }`
           }
         >
-          Forecasting
+          Forecast
         </NavLink>
         <NavLink
           to="/forecast"
@@ -36,6 +36,16 @@ const SideNav: React.FC = () => {
           }
         >
           Forecast Analysis
+        </NavLink>
+        <NavLink
+          to="/forecasthistory"
+          className={({ isActive }) =>
+            `p-2 rounded ${
+              isActive ? "bg-blue-100 font-semibold" : "hover:bg-gray-100"
+            }`
+          }
+        >
+          Forecast History
         </NavLink>
         <NavLink
           to="/historicaldata"

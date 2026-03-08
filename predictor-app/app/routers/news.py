@@ -1,6 +1,6 @@
 import os
 import requests
-from fastapi import HTTPException
+from fastapi import APIRouter, HTTPException, Query
 from datetime import date, timedelta
 
 # API key from configuration
@@ -8,22 +8,14 @@ from app.settings import settings
 
 FINNHUB_API_KEY = settings.finnhub_api_key
 
+router = APIRouter(prefix="/news", tags=["News"])
+
 BASE_URL = "https://finnhub.io/api/v1/company-news"
 
 positive_keywords = ['gain', 'growth', 'up', 'profit', 'surge', 'winner']
 negative_keywords = ['loss', 'down', 'drop', 'decline', 'risk', 'disappointing']
 
-def analyze_sentiment(headline: str) -> str:
-    lower = headline.lower()
-    positives = [kw for kw in positive_keywords if kw in lower]
-    negatives = [kw for kw in negative_keywords if kw in lower]
-
-    if len(positives) > len(negatives):
-        return "Positive"
-    elif len(negatives) > len(positives):
-        return "Negative"
-    return "Neutral"
-
+@router.get("/{symbol}")
 def get_company_news(symbol: str):
     today = date.today()
     week_ago = today - timedelta(days=7)
@@ -54,3 +46,14 @@ def get_company_news(symbol: str):
 
     except requests.RequestException as e:
         raise HTTPException(status_code=500, detail=f"News API error: {str(e)}")
+
+def analyze_sentiment(headline: str) -> str:
+    lower = headline.lower()
+    positives = [kw for kw in positive_keywords if kw in lower]
+    negatives = [kw for kw in negative_keywords if kw in lower]
+
+    if len(positives) > len(negatives):
+        return "Positive"
+    elif len(negatives) > len(positives):
+        return "Negative"
+    return "Neutral"
